@@ -210,8 +210,8 @@ module.exports = class Page extends Model {
     await WIKI.models.pages.renderPage(page)
 
     // -> Add to Search Index
-    const pageContents = await WIKI.models.pages.query().findById(page.id).select('render')
-    page.safeContent = WIKI.models.pages.cleanHTML(pageContents.render)
+    const pageContents = await WIKI.models.pages.query().findById(page.id).select('content')
+    page.safeContent = WIKI.models.pages.cleanHTML(pageContents.content)
     await WIKI.data.searchEngine.created(page)
 
     // -> Add to Storage
@@ -255,8 +255,8 @@ module.exports = class Page extends Model {
     await WIKI.models.pages.renderPage(page)
 
     // -> Update Search Index
-    const pageContents = await WIKI.models.pages.query().findById(page.id).select('render')
-    page.safeContent = WIKI.models.pages.cleanHTML(pageContents.render)
+    const pageContents = await WIKI.models.pages.query().findById(page.id).select('content')
+    page.safeContent = WIKI.models.pages.cleanHTML(pageContents.content)
     await WIKI.data.searchEngine.updated(page)
 
     // -> Update on Storage
