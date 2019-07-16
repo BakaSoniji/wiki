@@ -70,17 +70,22 @@ module.exports = {
   /**
    * CREATE
    *
-   * @param {Object} page Page to create
+   // * @param {Object} page Page to create
    */
   async created(page) {
-    await this.index.addObject({
-      objectID: page.hash,
-      locale: page.localeCode,
-      path: page.path,
-      title: page.title,
-      description: page.description,
-      content: page.safeContent
-    })
+    await this.index.addObjects(
+      page.safeContent.split(new RegExp('(?=^#+ )', 'm'))
+        .map(c => {
+          return {
+            objectID: page.hash,
+            locale: page.localeCode,
+            path: page.path,
+            title: page.title,
+            description: page.description,
+            content: c
+          }
+        })
+    )
   },
   /**
    * UPDATE
@@ -88,12 +93,16 @@ module.exports = {
    * @param {Object} page Page to update
    */
   async updated(page) {
-    await this.index.partialUpdateObject({
-      objectID: page.hash,
-      title: page.title,
-      description: page.description,
-      content: page.safeContent
-    })
+    await this.index.partialUpdateObjects(
+      page.safeContent.split(new RegExp('(?=^#+ )', 'm'))
+        .map(c => {
+          return {
+            objectID: page.hash,
+            title: page.title,
+            description: page.description,
+            content: c
+          }
+        }))
   },
   /**
    * DELETE
@@ -110,14 +119,19 @@ module.exports = {
    */
   async renamed(page) {
     await this.index.deleteObject(page.sourceHash)
-    await this.index.addObject({
-      objectID: page.destinationHash,
-      locale: page.localeCode,
-      path: page.destinationPath,
-      title: page.title,
-      description: page.description,
-      content: page.safeContent
-    })
+    await this.index.addObjects(
+      page.safeContent.split(new RegExp('(?=^#+ )', 'm'))
+        .map(c => {
+          return {
+            objectID: page.hash,
+            locale: page.localeCode,
+            path: page.path,
+            title: page.title,
+            description: page.description,
+            content: c
+          }
+        })
+    )
   },
   /**
    * REBUILD INDEX
@@ -126,7 +140,7 @@ module.exports = {
     WIKI.logger.info(`(SEARCH/ALGOLIA) Rebuilding Index...`)
     await this.index.clearIndex()
 
-    const MAX_DOCUMENT_BYTES = 10 * Math.pow(2, 10) // 10 KB
+    // const MAX_DOCUMENT_BYTES = 10 * Math.pow(2, 10) // 10 KB
     const MAX_INDEXING_BYTES = 10 * Math.pow(2, 20) - Buffer.from('[').byteLength - Buffer.from(']').byteLength // 10 MB
     const MAX_INDEXING_COUNT = 1000
     const COMMA_BYTES = Buffer.from(',').byteLength
@@ -139,9 +153,9 @@ module.exports = {
         if (doc) {
           const docBytes = Buffer.from(JSON.stringify(doc)).byteLength
           // -> Document too large
-          if (docBytes >= MAX_DOCUMENT_BYTES) {
-            throw new Error('Document exceeds maximum size allowed by Algolia.')
-          }
+          // if (docBytes >= MAX_DOCUMENT_BYTES) {
+          //   throw new Error('Document exceeds maximum size allowed by Algolia.')
+          // }
 
           // -> Current batch exceeds size hard limit, flush
           if (docBytes + COMMA_BYTES + bytes >= MAX_INDEXING_BYTES) {
@@ -178,7 +192,7 @@ module.exports = {
             path: doc.path,
             title: doc.title,
             description: doc.description,
-            content: WIKI.models.pages.cleanHTML(doc.render)
+            content: WIKI.models.pages.cleanHTML(doc.content)
           }))
         )
       } catch (err) {
@@ -189,7 +203,7 @@ module.exports = {
     }
 
     await pipeline(
-      WIKI.models.knex.column({ id: 'hash' }, 'path', { locale: 'localeCode' }, 'title', 'description', 'render').select().from('pages').where({
+      WIKI.models.knex.column({ id: 'hash' }, 'path', { locale: 'localeCode' }, 'title', 'description', 'content').select().from('pages').where({
         isPublished: true,
         isPrivate: false
       }).stream(),
